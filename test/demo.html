@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZTV+ Custom YouTube Player Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0; 
+            background: #000; 
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .player-container { 
+            position: relative; 
+            width: 100vw; 
+            height: 100vh; 
+        }
+        .youtube-iframe { 
+            width: 100%; 
+            height: 100%; 
+            border: none; 
+        }
+        .controls-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(transparent 70%, rgba(0,0,0,0.8) 100%);
+            opacity: 1;
+            transition: opacity 0.3s ease;
+            pointer-events: all;
+        }
+        .controls-overlay.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: white;
+        }
+        .control-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .control-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .progress-container {
+            flex: 1;
+            height: 4px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #ff0000;
+            border-radius: 2px;
+            width: 25%;
+            transition: width 0.1s;
+        }
+        .volume-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .volume-slider {
+            width: 80px;
+            height: 4px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+        .volume-bar {
+            height: 100%;
+            background: white;
+            border-radius: 2px;
+            width: 75%;
+        }
+        .time-display {
+            font-size: 14px;
+            min-width: 100px;
+            text-align: center;
+        }
+        
+        @media (max-width: 768px) {
+            .controls {
+                bottom: 10px;
+                left: 10px;
+                right: 10px;
+                gap: 10px;
+            }
+        }
+        
+        .demo-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            max-width: 300px;
+        }
+        
+        .toggle-demo {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #ff0000;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="player-container">
+        <div class="demo-info">
+            <h3>🎬 ZTV+ Custom Player Demo</h3>
+            <p>Mode: <span id="mode-text">Vidéo</span></p>
+            <p>Fonctionnalités testées:</p>
+            <ul style="font-size: 12px; margin: 5px 0;">
+                <li>✅ Design plein écran</li>
+                <li>✅ Contrôles personnalisés</li>
+                <li>✅ Responsive mobile</li>
+                <li>✅ Auto-masquage des contrôles</li>
+                <li>✅ Raccourcis clavier</li>
+            </ul>
+        </div>
+        
+        <button class="toggle-demo" onclick="toggleMode()">
+            <span id="toggle-text">Mode Audio</span>
+        </button>
+        
+        <div id="video-mode">
+            <iframe class="youtube-iframe" 
+                    src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?enablejsapi=1&autoplay=0&controls=0&showinfo=0&rel=0&modestbranding=1"
+                    allowfullscreen>
+            </iframe>
+            
+            <div class="controls-overlay">
+                <div class="controls">
+                    <button class="control-btn play-toggle">
+                        <span class="material-icons">play_arrow</span>
+                    </button>
+                    
+                    <button class="control-btn mute-toggle">
+                        <span class="material-icons">volume_up</span>
+                    </button>
+                    
+                    <div class="volume-container">
+                        <div class="volume-slider">
+                            <div class="volume-bar"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="time-display">1:25 / 5:00</div>
+                    
+                    <div class="progress-container">
+                        <div class="progress-bar"></div>
+                    </div>
+                    
+                    <button class="control-btn audio-toggle" title="Mode audio">
+                        <span class="material-icons">headphones</span>
+                    </button>
+                    
+                    <button class="control-btn quality-btn" title="Qualité">
+                        <span class="material-icons">settings</span>
+                    </button>
+                    
+                    <button class="control-btn pip-btn" title="Picture-in-Picture">
+                        <span class="material-icons">picture_in_picture_alt</span>
+                    </button>
+                    
+                    <button class="control-btn fullscreen-btn" title="Plein écran">
+                        <span class="material-icons">fullscreen</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="audio-mode" style="display: none;">
+            <div style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 40px; box-sizing: border-box; position: relative;">
+                <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-image: url('https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg'); background-size: cover; background-position: center; filter: blur(20px) brightness(0.3); z-index: -1;"></div>
+                
+                <iframe style="position: absolute; left: -9999px; width: 1px; height: 1px;" 
+                        src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?enablejsapi=1&autoplay=0&controls=0&showinfo=0&rel=0&modestbranding=1"
+                        allowfullscreen>
+                </iframe>
+                
+                <img src="https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg" 
+                     alt="Video thumbnail" 
+                     style="width: 300px; height: 300px; border-radius: 20px; object-fit: cover; box-shadow: 0 20px 40px rgba(0,0,0,0.5); margin-bottom: 30px;">
+                
+                <div>
+                    <h1 style="color: white; font-size: 2rem; font-weight: 600; margin: 0 0 10px 0; max-width: 600px;">Rick Astley - Never Gonna Give You Up</h1>
+                    <p style="color: #ccc; font-size: 1.2rem; margin: 0 0 40px 0;">Rick Astley</p>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 20px; background: rgba(0,0,0,0.3); padding: 20px 30px; border-radius: 50px; backdrop-filter: blur(10px);">
+                    <button style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 15px; border-radius: 50%; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;">
+                        <span class="material-icons">skip_previous</span>
+                    </button>
+                    
+                    <button style="background: #ff0000; border: none; color: white; padding: 20px; border-radius: 50%; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;">
+                        <span class="material-icons">play_arrow</span>
+                    </button>
+                    
+                    <button style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 15px; border-radius: 50%; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;">
+                        <span class="material-icons">skip_next</span>
+                    </button>
+                    
+                    <button style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 15px; border-radius: 50%; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;">
+                        <span class="material-icons">volume_up</span>
+                    </button>
+                    
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="width: 80px; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; cursor: pointer; position: relative;">
+                            <div style="height: 100%; background: white; border-radius: 2px; width: 75%;"></div>
+                        </div>
+                    </div>
+                    
+                    <button style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 15px; border-radius: 50%; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;" title="Mode vidéo">
+                        <span class="material-icons">videocam</span>
+                    </button>
+                </div>
+                
+                <div style="color: white; margin-top: 20px;">1:25 / 5:00</div>
+                
+                <div style="margin-top: 20px; max-width: 400px; width: 100%; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; cursor: pointer; position: relative;">
+                    <div style="height: 100%; background: #ff0000; border-radius: 2px; width: 25%; transition: width 0.1s;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isAudioMode = false;
+        
+        function toggleMode() {
+            isAudioMode = !isAudioMode;
+            const videoMode = document.getElementById('video-mode');
+            const audioMode = document.getElementById('audio-mode');
+            const modeText = document.getElementById('mode-text');
+            const toggleText = document.getElementById('toggle-text');
+            
+            if (isAudioMode) {
+                videoMode.style.display = 'none';
+                audioMode.style.display = 'block';
+                modeText.textContent = 'Audio';
+                toggleText.textContent = 'Mode Vidéo';
+            } else {
+                videoMode.style.display = 'block';
+                audioMode.style.display = 'none';
+                modeText.textContent = 'Vidéo';
+                toggleText.textContent = 'Mode Audio';
+            }
+        }
+        
+        // Simulate controls auto-hide
+        let hideTimeout;
+        const overlay = document.querySelector('.controls-overlay');
+        
+        document.addEventListener('mousemove', () => {
+            if (!isAudioMode && overlay) {
+                overlay.classList.add('show');
+                clearTimeout(hideTimeout);
+                hideTimeout = setTimeout(() => {
+                    overlay.classList.remove('show');
+                }, 3000);
+            }
+        });
+        
+        // Keyboard shortcuts demo
+        document.addEventListener('keydown', (e) => {
+            switch(e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    console.log('Play/Pause toggled');
+                    break;
+                case 'KeyF':
+                    e.preventDefault();
+                    console.log('Fullscreen toggled');
+                    break;
+                case 'KeyM':
+                    e.preventDefault();
+                    console.log('Mute toggled');
+                    break;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "ztvplus-youtube-player",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker for custom YouTube player",
+  "main": "src/worker.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler publish"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  },
+  "dependencies": {}
+}
