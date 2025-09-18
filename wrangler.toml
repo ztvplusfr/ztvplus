@@ -1,0 +1,6 @@
+name = "ztvplus-youtube-player"
+main = "src/worker.js"
+compatibility_date = "2023-12-01"
+
+[env.production]
+vars = { ENVIRONMENT = "production" }
