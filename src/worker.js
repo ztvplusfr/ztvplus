@@ -8,13 +8,28 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
     
-    // Extract video ID from path
-    const videoIdMatch = path.match(/^\/([a-zA-Z0-9_-]{11})(?:\/(audio))?$/);
+    // Handle root path with usage instructions
+    if (path === '/') {
+      return new Response(generateUsagePage(), {
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=3600'
+        }
+      });
+    }
+    
+    // Handle favicon requests
+    if (path === '/favicon.ico') {
+      return new Response('Not found', { status: 404 });
+    }
+    
+    // Extract video ID from path - allow 10-11 character YouTube IDs
+    const videoIdMatch = path.match(/^\/([a-zA-Z0-9_-]{10,11})(?:\/(audio))?$/);
     
     if (!videoIdMatch) {
-      return new Response('Invalid URL format. Use /{video_id} or /{video_id}/audio', { 
+      return new Response(generateErrorPage('Invalid URL format. Use /{video_id} or /{video_id}/audio'), { 
         status: 400,
-        headers: { 'Content-Type': 'text/plain' }
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
       });
     }
     
@@ -22,6 +37,14 @@ export default {
     const audioMode = videoIdMatch[2] === 'audio';
     
     try {
+      // Validate video ID format more strictly
+      if (!isValidYouTubeId(videoId)) {
+        return new Response(generateErrorPage('Invalid YouTube video ID format'), { 
+          status: 400,
+          headers: { 'Content-Type': 'text/html; charset=utf-8' }
+        });
+      }
+      
       // Get video metadata from YouTube API
       const videoData = await getVideoMetadata(videoId, env.YOUTUBE_API_KEY || YOUTUBE_API_KEY);
       
@@ -32,18 +55,150 @@ export default {
         headers: {
           'Content-Type': 'text/html; charset=utf-8',
           'Cache-Control': 'public, max-age=3600',
-          'X-Frame-Options': 'SAMEORIGIN'
+          'X-Frame-Options': 'SAMEORIGIN',
+          'X-Content-Type-Options': 'nosniff',
+          'Referrer-Policy': 'strict-origin-when-cross-origin'
         }
       });
     } catch (error) {
-      console.error('Error:', error);
-      return new Response('Error loading video', { 
+      console.error('Error loading video:', error);
+      return new Response(generateErrorPage('Error loading video. Please check the video ID and try again.'), { 
         status: 500,
-        headers: { 'Content-Type': 'text/plain' }
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
       });
     }
   }
 };
+
+// Validate YouTube video ID format
+function isValidYouTubeId(videoId) {
+  // YouTube video IDs are typically 11 characters but can be 10-11
+  // Contains letters, numbers, hyphens, and underscores
+  return /^[a-zA-Z0-9_-]{10,11}$/.test(videoId);
+}
+
+// Generate usage page for root route
+function generateUsagePage() {
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZTV+ Custom YouTube Player</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold mb-4">🎬 ZTV+ Custom YouTube Player</h1>
+            <p class="text-xl text-gray-300">Lecteur YouTube personnalisé avec fonctionnalités avancées</p>
+        </div>
+        
+        <div class="grid md:grid-cols-2 gap-8 mb-8">
+            <div class="bg-gray-800 p-6 rounded-lg">
+                <h2 class="text-2xl font-semibold mb-4 text-red-400">Mode Vidéo</h2>
+                <p class="text-gray-300 mb-4">Lecteur plein écran avec contrôles personnalisés</p>
+                <div class="text-sm text-gray-400 mb-4">
+                    <strong>URL:</strong> /{video_id}
+                </div>
+                <div class="text-sm text-gray-400">
+                    <strong>Exemple:</strong><br>
+                    <code class="bg-gray-700 px-2 py-1 rounded">/dQw4w9WgXcQ</code>
+                </div>
+            </div>
+            
+            <div class="bg-gray-800 p-6 rounded-lg">
+                <h2 class="text-2xl font-semibold mb-4 text-blue-400">Mode Audio</h2>
+                <p class="text-gray-300 mb-4">Interface audio avec fond flou et contrôles simplifiés</p>
+                <div class="text-sm text-gray-400 mb-4">
+                    <strong>URL:</strong> /{video_id}/audio
+                </div>
+                <div class="text-sm text-gray-400">
+                    <strong>Exemple:</strong><br>
+                    <code class="bg-gray-700 px-2 py-1 rounded">/dQw4w9WgXcQ/audio</code>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-gray-800 p-6 rounded-lg mb-8">
+            <h2 class="text-2xl font-semibold mb-4">✨ Fonctionnalités</h2>
+            <div class="grid md:grid-cols-3 gap-4 text-sm">
+                <div>
+                    <h3 class="font-semibold text-green-400 mb-2">Contrôles</h3>
+                    <ul class="text-gray-300 space-y-1">
+                        <li>• Play/Pause</li>
+                        <li>• Volume & Mute</li>
+                        <li>• Barre progression</li>
+                        <li>• Plein écran</li>
+                        <li>• Picture-in-Picture</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-blue-400 mb-2">Raccourcis</h3>
+                    <ul class="text-gray-300 space-y-1">
+                        <li>• Espace: Play/Pause</li>
+                        <li>• ←/→: Recherche</li>
+                        <li>• ↑/↓: Volume</li>
+                        <li>• F: Plein écran</li>
+                        <li>• M: Muet</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-purple-400 mb-2">Mobile</h3>
+                    <ul class="text-gray-300 space-y-1">
+                        <li>• Design responsive</li>
+                        <li>• Gestes tactiles</li>
+                        <li>• Support iOS</li>
+                        <li>• Auto-rotation</li>
+                        <li>• Touch optimisé</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center">
+            <p class="text-gray-400 mb-4">Essayez avec un ID vidéo YouTube :</p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="/dQw4w9WgXcQ" class="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg font-semibold transition-colors">
+                    Mode Vidéo
+                </a>
+                <a href="/dQw4w9WgXcQ/audio" class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold transition-colors">
+                    Mode Audio
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>`;
+}
+
+// Generate error page
+function generateErrorPage(message) {
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Erreur - ZTV+ Player</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen">
+    <div class="text-center max-w-md mx-auto px-4">
+        <div class="text-6xl mb-4">⚠️</div>
+        <h1 class="text-2xl font-bold mb-4">Erreur</h1>
+        <p class="text-gray-300 mb-6">${message}</p>
+        <div class="space-y-2 text-sm text-gray-400 mb-6">
+            <p>Format valide: <code class="bg-gray-700 px-2 py-1 rounded">/{video_id}</code></p>
+            <p>Mode audio: <code class="bg-gray-700 px-2 py-1 rounded">/{video_id}/audio</code></p>
+        </div>
+        <a href="/" class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold transition-colors inline-block">
+            Retour à l'accueil
+        </a>
+    </div>
+</body>
+</html>`;
+}
 
 // Fetch video metadata from YouTube API
 async function getVideoMetadata(videoId, apiKey) {
@@ -502,12 +657,64 @@ function generatePlayerHTML(videoId, videoData, audioMode = false) {
                 const progressContainer = document.querySelector('.progress-container');
                 if (!progressContainer) return;
                 
+                let isDragging = false;
+                
+                // Click to seek
                 progressContainer.addEventListener('click', (e) => {
-                    const rect = progressContainer.getBoundingClientRect();
-                    const percentage = (e.clientX - rect.left) / rect.width;
-                    this.currentTime = percentage * this.duration;
-                    this.updateProgressBar();
-                    this.updateTimeDisplay();
+                    if (!isDragging) {
+                        const rect = progressContainer.getBoundingClientRect();
+                        const percentage = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                        this.currentTime = percentage * this.duration;
+                        this.updateProgressBar();
+                        this.updateTimeDisplay();
+                        this.showControls();
+                    }
+                });
+                
+                // Mouse drag support
+                progressContainer.addEventListener('mousedown', (e) => {
+                    isDragging = true;
+                    document.addEventListener('mousemove', mouseMoveHandler);
+                    document.addEventListener('mouseup', mouseUpHandler);
+                    e.preventDefault();
+                });
+                
+                const mouseMoveHandler = (e) => {
+                    if (isDragging) {
+                        const rect = progressContainer.getBoundingClientRect();
+                        const percentage = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                        this.currentTime = percentage * this.duration;
+                        this.updateProgressBar();
+                        this.updateTimeDisplay();
+                    }
+                };
+                
+                const mouseUpHandler = () => {
+                    isDragging = false;
+                    document.removeEventListener('mousemove', mouseMoveHandler);
+                    document.removeEventListener('mouseup', mouseUpHandler);
+                };
+                
+                // Touch support for mobile
+                progressContainer.addEventListener('touchstart', (e) => {
+                    isDragging = true;
+                    e.preventDefault();
+                });
+                
+                progressContainer.addEventListener('touchmove', (e) => {
+                    if (isDragging) {
+                        const rect = progressContainer.getBoundingClientRect();
+                        const touch = e.touches[0];
+                        const percentage = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
+                        this.currentTime = percentage * this.duration;
+                        this.updateProgressBar();
+                        this.updateTimeDisplay();
+                        e.preventDefault();
+                    }
+                });
+                
+                progressContainer.addEventListener('touchend', () => {
+                    isDragging = false;
                 });
             }
             
